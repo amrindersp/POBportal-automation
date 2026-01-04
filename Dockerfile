@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Ensure pip packages are in PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
