@@ -29,7 +29,19 @@ def redis_from_url(url: str) -> Redis:
     import urllib.parse
     u = urllib.parse.urlparse(url)
     db = int((u.path or "/0").replace("/", "") or "0")
-    return Redis(host=u.hostname or "localhost", port=u.port or 6379, db=db, password=u.password)
+    
+    # Check if using SSL (rediss://)
+    use_ssl = u.scheme == "rediss"
+    
+    return Redis(
+        host=u.hostname or "localhost",
+        port=u.port or 6379,
+        db=db,
+        password=u.password,
+        ssl=use_ssl,
+        ssl_cert_reqs=None if use_ssl else None,
+        decode_responses=False
+    )
 
 
 def require_app_login(username: str, password: str):
