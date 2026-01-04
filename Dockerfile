@@ -24,23 +24,16 @@ RUN apt-get update && apt-get install -y \
     libpangocairo-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright and browsers
-RUN playwright install chromium
+RUN python -m playwright install chromium
 
-# Copy application code
 COPY . .
 
-# Expose port
 EXPOSE 10000
 
-# Start both worker and web server
 CMD ["bash", "start.sh"]
