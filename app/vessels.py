@@ -74,6 +74,7 @@ VESSELS = [
   "VMS 3",
   "VMS 21",
   "MICLYN CONSTRUCTOR I",
+  "LTB300",
   "Offshore Ranger",
   "Britoil 81",
   "Britoil 71",
@@ -103,4 +104,5 @@ VESSELS = [
   "VICTORIA 251",
   "SHIVALI 2",
   "SEA Venture",
+  "MARIA1",
 ]
