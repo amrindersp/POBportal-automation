@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Automation Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 40px;
+        }
+        h1 { margin-bottom: 10px; }
+        form {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            max-width: 950px;
+        }
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        input {
+            padding: 10px;
+            width: 170px;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 25px;
+            font-size: 14px;
+            background: #0d6efd;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #9bb8e8;
+            cursor: not-allowed;
+        }
+        #progressBox {
+            margin-top: 30px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            max-width: 950px;
+        }
+        #progressBar {
+            width: 100%;
+            height: 22px;
+            background: #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        #progressFill {
+            height: 100%;
+            width: 0%;
+            background: #0d6efd;
+            transition: width 0.4s ease;
+        }
+        pre {
+            background: #f1f1f1;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .downloads a {
+            display: block;
+            margin-top: 6px;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .downloads a:hover {
+            text-decoration: underline;
+        }
+        .top-links {
+            margin-bottom: 20px;
+        }
+        .top-links a {
+            color: #0d6efd;
+            text-decoration: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Automation Dashboard</h1>
+
+<div class="top-links">
+    <p>
+        <a href="/history" target="_blank">View Run History</a>
+    </p>
+</div>
+
+<form id="automationForm">
+    <div class="row">
+        <input id="mailUser" placeholder="Mail Username" required>
+        <input id="mailPass" type="password" placeholder="Mail Password" autocomplete="off" required>
+
+        <input id="pobUser" placeholder="POB Username" required>
+        <input id="pobPass" type="password" placeholder="POB Password" autocomplete="off" required>
+
+        <input id="emailId" placeholder="Email ID" required>
+        <input id="vessel" placeholder="Vessel (e.g. LTB300)" required>
+
+        <button type="button" id="startBtn" onclick="startAutomation()">Start</button>
+    </div>
+</form>
+
+<div id="progressBox">
+    <div id="progressBar">
+        <div id="progressFill"></div>
+    </div>
+
+    <pre id="statusText">Waiting for automation to start…</pre>
+    <div class="downloads" id="downloadLinks"></div>
+</div>
+
+<script>
+let pollTimer = null;
+let currentRunId = null;
+
+function getValue(id) {
+    return document.getElementById(id).value.trim();
+}
+
+async function startAutomation() {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+
+    const btn = document.getElementById("startBtn");
+    btn.disabled = true;
+
+    document.getElementById("statusText").innerText = "Starting automation...";
+    document.getElementById("downloadLinks").innerHTML = "";
+    document.getElementById("progressFill").style.width = "0%";
+
+    const payload = {
+        mail_username: getValue("mailUser"),
+        mail_password: getValue("mailPass"),
+        pob_username: getValue("pobUser"),
+        pob_password: getValue("pobPass"),
+        email_id: getValue("emailId"),
+        vessel: getValue("vessel")
+    };
+
+    for (const k in payload) {
+        if (!payload[k]) {
+            document.getElementById("statusText").innerText =
+                "Please fill all fields before starting.";
+            btn.disabled = false;
+            return;
+        }
+    }
+
+    const response = await fetch("/automation/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!data.run_id) {
+        document.getElementById("statusText").innerText =
+            "Failed to start automation.";
+        btn.disabled = false;
+        return;
+    }
+
+    currentRunId = data.run_id;
+    document.getElementById("statusText").innerText =
+        `Run started\nRun ID: ${currentRunId}`;
+
+    startPolling();
+}
+
+function startPolling() {
+    pollTimer = setInterval(async () => {
+        const res = await fetch(`/automation/status/${currentRunId}`);
+        const data = await res.json();
+
+        document.getElementById("progressFill").style.width =
+            (data.progress || 0) + "%";
+
+        document.getElementById("statusText").innerText =
+`Run ID: ${data.run_id}
+Step: ${data.step}
+Status: ${data.status}
+Progress: ${data.progress ?? 0}%
+Error: ${data.error ?? "-"}`;
+
+        const dl = document.getElementById("downloadLinks");
+        dl.innerHTML = "";
+
+        if (data.files && data.files.length > 0) {
+            data.files.forEach(f => {
+                const a = document.createElement("a");
+
+                // ✅ FIXED DOWNLOAD LINK
+                a.href = `/automation/download/${currentRunId}/${f.id}`;
+
+                a.innerText = `Download ${f.name}`;
+                a.target = "_blank";
+                dl.appendChild(a);
+            });
+        }
+
+        if (data.status === "SUCCESS" || data.status === "FAILED") {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            document.getElementById("startBtn").disabled = false;
+        }
+    }, 2000);
+}
+</script>
+
+</body>
+</html>

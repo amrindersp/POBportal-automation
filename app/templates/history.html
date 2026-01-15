@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Automation Run History</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 30px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f1f1f1;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .SUCCESS {
+            color: green;
+            font-weight: bold;
+        }
+
+        .FAILED {
+            color: red;
+            font-weight: bold;
+        }
+
+        .RUNNING {
+            color: orange;
+            font-weight: bold;
+        }
+
+        a {
+            color: #0d6efd;
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .actions a {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Automation Run History</h1>
+
+<table id="runsTable">
+    <thead>
+        <tr>
+            <th>Run ID</th>
+            <th>User</th>
+            <th>Vessel</th>
+            <th>Step</th>
+            <th>Status</th>
+            <th>Last Updated</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+async function loadRuns() {
+    const res = await fetch("/automation/runs");
+    const runs = await res.json();
+
+    const tbody = document.querySelector("#runsTable tbody");
+    tbody.innerHTML = "";
+
+    runs.forEach(r => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${r.id}</td>
+            <td>${r.user}</td>
+            <td>${r.vessel}</td>
+            <td>${r.step}</td>
+            <td class="${r.status}">${r.status}</td>
+            <td>${r.updated_at}</td>
+            <td class="actions">
+                <a href="/automation/status/${r.id}" target="_blank">View Status</a>
+                ${r.status === "FAILED"
+                    ? `<a href="#" onclick="resumeRun(${r.id})">Resume</a>`
+                    : ""}
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+async function resumeRun(runId) {
+    if (!confirm("Resume this failed automation run?")) return;
+
+    const res = await fetch(`/automation/resume/${runId}`, {
+        method: "POST"
+    });
+
+    if (res.ok) {
+        alert("Resume triggered successfully");
+        loadRuns();
+    } else {
+        alert("Failed to resume run");
+    }
+}
+
+// Initial load
+loadRuns();
+</script>
+
+</body>
+</html>
